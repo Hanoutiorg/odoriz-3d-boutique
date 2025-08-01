@@ -44,7 +44,7 @@ const CartSidebar = () => {
         setAppliedDiscount(discount);
         toast({
           title: "Code promo appliqué !",
-          description: `${discount.description} - ${discount.value}${discount.type === 'percentage' ? '%' : '€'} de réduction`,
+          description: `${discount.description} - ${discount.value}${discount.type === 'percentage' ? '%' : 'TND'} de réduction`,
           duration: 3000,
         });
       } else {
@@ -169,7 +169,7 @@ const CartSidebar = () => {
                           <h3 className="font-semibold text-sm">{item.name}</h3>
                           <p className="text-xs text-muted-foreground">{item.brand}</p>
                           <p className="text-sm font-semibold text-accent">
-                            {item.price.toFixed(2)} €
+                            {item.price.toFixed(2)} TND
                           </p>
                         </div>
                         <div className="flex items-center justify-between">
@@ -254,12 +254,12 @@ const CartSidebar = () => {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span>Sous-total</span>
-                    <span>{totalAmount.toFixed(2)} €</span>
+                    <span>{totalAmount.toFixed(2)} TND</span>
                   </div>
                   {appliedDiscount && discountAmount > 0 && (
                     <div className="flex justify-between text-green-600">
                       <span>Réduction ({appliedDiscount.code})</span>
-                      <span>-{discountAmount.toFixed(2)} €</span>
+                      <span>-{discountAmount.toFixed(2)} TND</span>
                     </div>
                   )}
                   <div className="flex justify-between items-center">
@@ -271,13 +271,13 @@ const CartSidebar = () => {
                       {shippingCost === 0 ? (
                         <Badge variant="secondary" className="text-xs">Gratuite</Badge>
                       ) : (
-                        `${shippingCost.toFixed(2)} €`
+                        `${shippingCost.toFixed(2)} TND`
                       )}
                     </span>
                   </div>
                   {shippingCost > 0 && (
                     <p className="text-xs text-muted-foreground">
-                      Livraison gratuite dès 100€ d'achat
+                      Livraison gratuite dès 100TND d'achat
                     </p>
                   )}
                 </div>
@@ -285,7 +285,7 @@ const CartSidebar = () => {
                 <div className="flex justify-between items-center font-semibold text-lg">
                   <span>Total</span>
                   <span className="text-accent">
-                    {(appliedDiscount ? finalTotalWithDiscount : finalTotal).toFixed(2)} €
+                    {(appliedDiscount ? finalTotalWithDiscount : finalTotal).toFixed(2)} TND
                   </span>
                 </div>
 

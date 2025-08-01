@@ -163,11 +163,11 @@ const ProductCard = ({ product, index = 0 }) => {
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <p className="text-lg font-semibold text-accent">
-                {product.price.toFixed(2)} €
+                {product.price.toFixed(2)} TND
               </p>
               {product.originalPrice && product.originalPrice > product.price && (
                 <p className="text-sm text-muted-foreground line-through">
-                  {product.originalPrice.toFixed(2)} €
+                  {product.originalPrice.toFixed(2)} TND
                 </p>
               )}
             </div>

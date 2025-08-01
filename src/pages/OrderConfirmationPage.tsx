@@ -41,14 +41,14 @@ const OrderConfirmationPage = () => {
             {order.items.map(item => (
               <div key={item.productId} className="flex justify-between items-center">
                 <span>{item.productName} x{item.quantity}</span>
-                <span>{(item.price * item.quantity).toFixed(2)} €</span>
+                <span>{(item.price * item.quantity).toFixed(2)} TND</span>
               </div>
             ))}
           </div>
           <Separator />
           <div className="flex justify-between font-bold">
             <span>Total Payé</span>
-            <span>{order.total.toFixed(2)} €</span>
+            <span>{order.total.toFixed(2)} TND</span>
           </div>
           <Separator />
           <div>

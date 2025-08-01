@@ -174,7 +174,7 @@ export const CartProvider = ({ children }) => {
   // Calculer les frais de port (simulation)
   const getShippingCost = () => {
     if (state.totalAmount >= 100) {
-      return 0; // Livraison gratuite à partir de 100€
+      return 0; // Livraison gratuite à partir de 100TND
     }
     return 8.90; // Frais de port standard
   };

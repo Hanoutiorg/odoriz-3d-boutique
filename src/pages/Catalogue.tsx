@@ -191,7 +191,7 @@ const Catalogue = () => {
             {/* Prix */}
             <div>
               <label className="block text-sm font-medium mb-2">
-                Prix: {filters.minPrice}€ - {filters.maxPrice}€
+                Prix: {filters.minPrice}TND - {filters.maxPrice}TND
               </label>
               <div className="px-3 py-2">
                 <Slider
