@@ -160,12 +160,12 @@ const Catalogue = () => {
                   {/* Marque */}
                   <div>
                     <label className="text-sm font-medium mb-3 block">Marque</label>
-                    <Select value={filters.brand} onValueChange={(value) => handleFilterChange('brand', value)}>
+                    <Select value={filters.brand || "all"} onValueChange={(value) => handleFilterChange('brand', value === "all" ? "" : value)}>
                       <SelectTrigger>
                         <SelectValue placeholder="Toutes les marques" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Toutes les marques</SelectItem>
+                        <SelectItem value="all">Toutes les marques</SelectItem>
                         {brands.map((brand) => (
                           <SelectItem key={String(brand)} value={String(brand)}>
                             {String(brand)}
