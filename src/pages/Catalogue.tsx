@@ -40,7 +40,7 @@ const Catalogue = () => {
     if (filter === 'new') {
       updateFilters({ sortBy: 'newest' });
     } else if (filter === 'bestsellers') {
-      updateFilters({ sortBy: 'bestseller' });
+      updateFilters({ sortBy: 'rating' }); // Changed from 'bestseller' to 'rating' which exists in sortOptions
     }
   }, [location.search, updateFilters]);
 
@@ -237,16 +237,19 @@ const Catalogue = () => {
               </div>
 
               <div className="flex items-center gap-4">
-                <Select value={filters.sortBy} onValueChange={(value) => handleFilterChange('sortBy', value)}>
+                <Select value={filters.sortBy || "name"} onValueChange={(value) => handleFilterChange('sortBy', value)}>
                   <SelectTrigger className="w-48">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {sortOptions.map((option) => (
-                      <SelectItem key={String(option.value)} value={String(option.value)}>
-                        {String(option.label)}
-                      </SelectItem>
-                    ))}
+                    {sortOptions.map((option) => {
+                      console.log('SortOption:', option); // Debug log
+                      return (
+                        <SelectItem key={String(option.value)} value={String(option.value)}>
+                          {String(option.label)}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
 
