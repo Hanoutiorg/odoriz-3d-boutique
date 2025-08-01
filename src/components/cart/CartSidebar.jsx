@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom'; // <-- 1. Importer useNavigate
 import { X, Plus, Minus, ShoppingBag, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useCart } from '../../contexts/CartContext';
+import { useAuth } from '../../contexts/AuthContext'; // <-- 2. Importer le contexte d'authentification
 import { validateDiscountCode } from '../../api/mockApi';
 import { toast } from '@/hooks/use-toast';
 
@@ -21,6 +23,9 @@ const CartSidebar = () => {
     getShippingCost,
     getFinalTotal
   } = useCart();
+  
+  const { isAuthenticated } = useAuth(); // <-- 3. Récupérer l'état d'authentification
+  const navigate = useNavigate(); // <-- 4. Initialiser le hook de navigation
 
   const [discountCode, setDiscountCode] = useState('');
   const [appliedDiscount, setAppliedDiscount] = useState(null);
@@ -74,6 +79,26 @@ const CartSidebar = () => {
   const discountAmount = getDiscountAmount();
   const finalTotalWithDiscount = Math.max(0, finalTotal - discountAmount);
 
+  // <-- 5. Créer la fonction pour gérer le paiement
+  const handleProceedToCheckout = () => {
+    // Fermer le panier dans tous les cas
+    toggleCart();
+
+    if (isAuthenticated) {
+      // Si l'utilisateur est connecté, on le redirige vers la page de paiement
+      navigate('/checkout');
+    } else {
+      // Sinon, on affiche un message et on le redirige vers la page de connexion
+      toast({
+        title: "Veuillez vous connecter",
+        description: "Vous devez être connecté pour pouvoir passer une commande.",
+        duration: 4000,
+      });
+      // On redirige vers la page de login, en gardant en mémoire qu'on voulait aller au checkout
+      navigate('/login', { state: { from: '/checkout' } });
+    }
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -111,6 +136,7 @@ const CartSidebar = () => {
             {/* Contenu */}
             <div className="flex-1 overflow-y-auto">
               {items.length === 0 ? (
+                // ... (contenu du panier vide, inchangé)
                 <div className="flex flex-col items-center justify-center h-full text-center p-6">
                   <ShoppingBag className="h-16 w-16 text-muted-foreground mb-4" />
                   <h3 className="text-lg font-semibold mb-2">Votre panier est vide</h3>
@@ -123,7 +149,7 @@ const CartSidebar = () => {
                 </div>
               ) : (
                 <div className="p-6 space-y-4">
-                  {/* Articles du panier */}
+                  {/* ... (Articles du panier et code promo, inchangés) */}
                   {items.map((item) => (
                     <motion.div
                       key={item.id}
@@ -146,7 +172,6 @@ const CartSidebar = () => {
                             {item.price.toFixed(2)} €
                           </p>
                         </div>
-                        
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-2">
                             <Button
@@ -169,7 +194,6 @@ const CartSidebar = () => {
                               <Plus className="h-3 w-3" />
                             </Button>
                           </div>
-                          
                           <Button
                             variant="ghost"
                             size="sm"
@@ -182,8 +206,6 @@ const CartSidebar = () => {
                       </div>
                     </motion.div>
                   ))}
-
-                  {/* Code promo */}
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Code promo</label>
                     <div className="flex space-x-2">
@@ -228,19 +250,18 @@ const CartSidebar = () => {
             {/* Footer avec totaux */}
             {items.length > 0 && (
               <div className="border-t border-border p-6 space-y-4">
+                {/* ... (Affichage des totaux, inchangé) */}
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span>Sous-total</span>
                     <span>{totalAmount.toFixed(2)} €</span>
                   </div>
-                  
                   {appliedDiscount && discountAmount > 0 && (
                     <div className="flex justify-between text-green-600">
                       <span>Réduction ({appliedDiscount.code})</span>
                       <span>-{discountAmount.toFixed(2)} €</span>
                     </div>
                   )}
-                  
                   <div className="flex justify-between items-center">
                     <div className="flex items-center space-x-1">
                       <Truck className="h-4 w-4" />
@@ -254,16 +275,13 @@ const CartSidebar = () => {
                       )}
                     </span>
                   </div>
-                  
                   {shippingCost > 0 && (
                     <p className="text-xs text-muted-foreground">
                       Livraison gratuite dès 100€ d'achat
                     </p>
                   )}
                 </div>
-
                 <Separator />
-
                 <div className="flex justify-between items-center font-semibold text-lg">
                   <span>Total</span>
                   <span className="text-accent">
@@ -271,7 +289,11 @@ const CartSidebar = () => {
                   </span>
                 </div>
 
-                <Button className="w-full luxury-gradient text-primary-foreground font-semibold">
+                {/* <-- 6. Lier la fonction au bouton --> */}
+                <Button 
+                  className="w-full luxury-gradient text-primary-foreground font-semibold"
+                  onClick={handleProceedToCheckout}
+                >
                   Procéder au paiement
                 </Button>
                 

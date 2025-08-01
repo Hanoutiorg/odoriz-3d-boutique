@@ -1,194 +1,185 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { fetchProducts, fetchProductById, searchProducts, fetchBestSellers, fetchNewProducts } from '../api/mockApi';
+import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
+import { fetchProducts, fetchProductById } from '../api/mockApi';
 
-// State initial
+// Initial state for the context
 const initialState = {
   products: [],
+  filteredProducts: [],
   bestSellers: [],
   newProducts: [],
   currentProduct: null,
-  searchResults: [],
   loading: false,
   error: null,
   filters: {
     category: '',
     brand: '',
     minPrice: 0,
-    maxPrice: 1000,
-    sortBy: 'name'
-  }
+    maxPrice: 500,
+    sortBy: 'name',
+  },
 };
 
-// Actions
+// All possible actions that can be dispatched to the reducer
 const ACTIONS = {
   SET_LOADING: 'SET_LOADING',
   SET_PRODUCTS: 'SET_PRODUCTS',
-  SET_BEST_SELLERS: 'SET_BEST_SELLERS',
-  SET_NEW_PRODUCTS: 'SET_NEW_PRODUCTS',
   SET_CURRENT_PRODUCT: 'SET_CURRENT_PRODUCT',
-  SET_SEARCH_RESULTS: 'SET_SEARCH_RESULTS',
   SET_ERROR: 'SET_ERROR',
-  SET_FILTERS: 'SET_FILTERS',
-  CLEAR_ERROR: 'CLEAR_ERROR'
+  ADD_PRODUCT: 'ADD_PRODUCT',
+  UPDATE_PRODUCT: 'UPDATE_PRODUCT',
+  REMOVE_PRODUCT: 'REMOVE_PRODUCT',
+  SET_FILTERED_PRODUCTS: 'SET_FILTERED_PRODUCTS',
 };
 
-// Reducer
+// The reducer function that handles state updates based on actions
 const productReducer = (state, action) => {
   switch (action.type) {
     case ACTIONS.SET_LOADING:
-      return { ...state, loading: action.payload };
+      return { ...state, loading: action.payload, error: null };
     case ACTIONS.SET_PRODUCTS:
-      return { ...state, products: action.payload, loading: false, error: null };
-    case ACTIONS.SET_BEST_SELLERS:
-      return { ...state, bestSellers: action.payload };
-    case ACTIONS.SET_NEW_PRODUCTS:
-      return { ...state, newProducts: action.payload };
+      return {
+        ...state,
+        products: action.payload,
+        filteredProducts: action.payload, // Initially, the filtered list is the full list
+        bestSellers: action.payload.filter(p => p.isBestSeller),
+        newProducts: action.payload.filter(p => p.isNewProduct),
+        loading: false,
+      };
     case ACTIONS.SET_CURRENT_PRODUCT:
-      return { ...state, currentProduct: action.payload, loading: false, error: null };
-    case ACTIONS.SET_SEARCH_RESULTS:
-      return { ...state, searchResults: action.payload, loading: false, error: null };
+      return { ...state, currentProduct: action.payload, loading: false };
     case ACTIONS.SET_ERROR:
       return { ...state, error: action.payload, loading: false };
-    case ACTIONS.SET_FILTERS:
-      return { ...state, filters: { ...state.filters, ...action.payload } };
-    case ACTIONS.CLEAR_ERROR:
-      return { ...state, error: null };
+    case ACTIONS.ADD_PRODUCT:
+      return {
+        ...state,
+        products: [...state.products, action.payload],
+        filteredProducts: [...state.products, action.payload], // Also add to filtered list
+      };
+    case ACTIONS.UPDATE_PRODUCT:
+      return {
+        ...state,
+        products: state.products.map(p => p.id === action.payload.id ? action.payload : p),
+        filteredProducts: state.filteredProducts.map(p => p.id === action.payload.id ? action.payload : p),
+      };
+    case ACTIONS.REMOVE_PRODUCT:
+      return {
+        ...state,
+        products: state.products.filter(p => p.id !== action.payload),
+        filteredProducts: state.filteredProducts.filter(p => p.id !== action.payload),
+      };
+    case ACTIONS.SET_FILTERED_PRODUCTS:
+      return {
+        ...state,
+        filteredProducts: action.payload,
+      };
     default:
       return state;
   }
 };
 
-// Context
+// Create the context
 const ProductContext = createContext();
 
-// Provider
+
+// Provider Component
 export const ProductProvider = ({ children }) => {
   const [state, dispatch] = useReducer(productReducer, initialState);
+  const [filters, setFilters] = React.useState({
+    category: '',
+    brand: '',
+    minPrice: 0,
+    maxPrice: 500,
+    sortBy: 'name',
+  });
 
-  // Charger tous les produits
-  const loadProducts = async () => {
+  const loadProducts = useCallback(async () => {
+    dispatch({ type: ACTIONS.SET_LOADING, payload: true });
     try {
-      dispatch({ type: ACTIONS.SET_LOADING, payload: true });
-      const products = await fetchProducts();
-      dispatch({ type: ACTIONS.SET_PRODUCTS, payload: products });
+      const productsData = await fetchProducts();
+      dispatch({ type: ACTIONS.SET_PRODUCTS, payload: productsData });
     } catch (error) {
       dispatch({ type: ACTIONS.SET_ERROR, payload: error.message });
     }
-  };
+  }, []);
 
-  // Charger les meilleures ventes
-  const loadBestSellers = async () => {
-    try {
-      const bestSellers = await fetchBestSellers();
-      dispatch({ type: ACTIONS.SET_BEST_SELLERS, payload: bestSellers });
-    } catch (error) {
-      console.error('Erreur lors du chargement des meilleures ventes:', error);
-    }
-  };
+  useEffect(() => {
+    loadProducts();
+  }, [loadProducts]);
 
-  // Charger les nouveautés
-  const loadNewProducts = async () => {
+  const loadProduct = useCallback(async (productId) => {
+    dispatch({ type: ACTIONS.SET_LOADING, payload: true });
     try {
-      const newProducts = await fetchNewProducts();
-      dispatch({ type: ACTIONS.SET_NEW_PRODUCTS, payload: newProducts });
-    } catch (error) {
-      console.error('Erreur lors du chargement des nouveautés:', error);
-    }
-  };
-
-  // Charger un produit spécifique
-  const loadProduct = async (productId) => {
-    try {
-      dispatch({ type: ACTIONS.SET_LOADING, payload: true });
-      const product = await fetchProductById(productId);
+      let product = state.products.find(p => p.id === parseInt(productId));
+      if (!product) {
+        product = await fetchProductById(productId);
+      }
+      if (!product) {
+        throw new Error("Product not found in state or API");
+      }
       dispatch({ type: ACTIONS.SET_CURRENT_PRODUCT, payload: product });
     } catch (error) {
       dispatch({ type: ACTIONS.SET_ERROR, payload: error.message });
     }
-  };
+  }, [state.products]);
 
-  // Rechercher des produits
-  const searchProductsByQuery = async (query) => {
-    try {
-      dispatch({ type: ACTIONS.SET_LOADING, payload: true });
-      const results = await searchProducts(query);
-      dispatch({ type: ACTIONS.SET_SEARCH_RESULTS, payload: results });
-    } catch (error) {
-      dispatch({ type: ACTIONS.SET_ERROR, payload: error.message });
+  // CRUD functions that dispatch actions to the reducer
+  const addProductToState = useCallback((product) => dispatch({ type: ACTIONS.ADD_PRODUCT, payload: product }), []);
+  const updateProductInState = useCallback((product) => dispatch({ type: ACTIONS.UPDATE_PRODUCT, payload: product }), []);
+  const removeProductFromState = useCallback((productId) => dispatch({ type: ACTIONS.REMOVE_PRODUCT, payload: productId }), []);
+
+  // Search function that filters the master list and updates the filtered list
+  const searchProductsByQuery = useCallback((query) => {
+    if (!query) {
+      dispatch({ type: ACTIONS.SET_FILTERED_PRODUCTS, payload: state.products });
+      return;
     }
-  };
+    const lowercasedQuery = query.toLowerCase();
+    const results = state.products.filter(p => 
+      p.name.toLowerCase().includes(lowercasedQuery) ||
+      p.brand.toLowerCase().includes(lowercasedQuery)
+    );
+    dispatch({ type: ACTIONS.SET_FILTERED_PRODUCTS, payload: results });
+  }, [state.products]);
 
-  // Filtrer et trier les produits localement
+  // Filtering, sorting, and helpers for catalogue
+  const updateFilters = (newFilters) => {
+    setFilters(prev => ({ ...prev, ...newFilters }));
+  };
+  const resetFilters = () => {
+    setFilters({ category: '', brand: '', minPrice: 0, maxPrice: 500, sortBy: 'name' });
+  };
   const getFilteredProducts = () => {
     let filtered = [...state.products];
-
-    // Filtrer par catégorie
-    if (state.filters.category) {
-      filtered = filtered.filter(product => product.category === state.filters.category);
-    }
-
-    // Filtrer par marque
-    if (state.filters.brand) {
-      filtered = filtered.filter(product => product.brand === state.filters.brand);
-    }
-
-    // Filtrer par prix
-    filtered = filtered.filter(product => 
-      product.price >= state.filters.minPrice && product.price <= state.filters.maxPrice
-    );
-
-    // Trier
-    switch (state.filters.sortBy) {
+    if (filters.category) filtered = filtered.filter(p => p.category === filters.category);
+    if (filters.brand) filtered = filtered.filter(p => p.brand === filters.brand);
+    filtered = filtered.filter(p => p.price >= filters.minPrice && p.price <= filters.maxPrice);
+    switch (filters.sortBy) {
       case 'price-asc':
-        filtered.sort((a, b) => a.price - b.price);
-        break;
+        filtered.sort((a, b) => a.price - b.price); break;
       case 'price-desc':
-        filtered.sort((a, b) => b.price - a.price);
-        break;
+        filtered.sort((a, b) => b.price - a.price); break;
       case 'rating':
-        filtered.sort((a, b) => b.rating - a.rating);
-        break;
-      case 'name':
+        filtered.sort((a, b) => b.rating - a.rating); break;
+      case 'newest':
+        filtered.sort((a, b) => (b.isNewProduct ? 1 : 0) - (a.isNewProduct ? 1 : 0)); break;
       default:
-        filtered.sort((a, b) => a.name.localeCompare(b.name));
+        filtered.sort((a, b) => a.name.localeCompare(b.name)); break;
     }
-
     return filtered;
   };
 
-  // Mettre à jour les filtres
-  const updateFilters = (newFilters) => {
-    dispatch({ type: ACTIONS.SET_FILTERS, payload: newFilters });
-  };
-
-  // Réinitialiser les filtres
-  const resetFilters = () => {
-    dispatch({ type: ACTIONS.SET_FILTERS, payload: initialState.filters });
-  };
-
-  // Effacer les erreurs
-  const clearError = () => {
-    dispatch({ type: ACTIONS.CLEAR_ERROR });
-  };
-
-  // Charger les données initiales
-  useEffect(() => {
-    loadProducts();
-    loadBestSellers();
-    loadNewProducts();
-  }, []);
-
   const value = {
     ...state,
-    loadProducts,
-    loadBestSellers,
-    loadNewProducts,
-    loadProduct,
-    searchProductsByQuery,
-    getFilteredProducts,
+    filters,
     updateFilters,
     resetFilters,
-    clearError
+    getFilteredProducts,
+    loadProducts,
+    loadProduct,
+    addProductToState,
+    updateProductInState,
+    removeProductFromState,
+    searchProductsByQuery,
   };
 
   return (
@@ -198,11 +189,11 @@ export const ProductProvider = ({ children }) => {
   );
 };
 
-// Hook personnalisé
+// Custom Hook to consume the context
 export const useProducts = () => {
   const context = useContext(ProductContext);
   if (context === undefined) {
-    throw new Error('useProducts doit être utilisé dans un ProductProvider');
+    throw new Error('useProducts must be used within a ProductProvider');
   }
   return context;
 };

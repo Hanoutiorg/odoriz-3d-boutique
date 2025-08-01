@@ -1,30 +1,31 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { loginUser } from '../api/mockApi';
-import { toast } from '@/hooks/use-toast';
+// src/contexts/AuthContext.jsx
 
-// État initial
+import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
+import { loginUser, updateUserDetails as apiUpdateUserDetails } from '../api/mockApi';
+
+// Initial state for the authentication context
 const initialState = {
   isAuthenticated: false,
   user: null,
   token: null,
   loading: false,
-  error: null
+  error: null,
 };
 
-// Actions
+// Actions to be dispatched
 const ACTIONS = {
-  SET_LOADING: 'SET_LOADING',
+  LOGIN_START: 'LOGIN_START',
   LOGIN_SUCCESS: 'LOGIN_SUCCESS',
-  LOGIN_ERROR: 'LOGIN_ERROR',
+  LOGIN_FAILURE: 'LOGIN_FAILURE',
   LOGOUT: 'LOGOUT',
-  CLEAR_ERROR: 'CLEAR_ERROR'
+  UPDATE_USER_SUCCESS: 'UPDATE_USER_SUCCESS',
 };
 
-// Reducer
+// Reducer function to manage state changes
 const authReducer = (state, action) => {
   switch (action.type) {
-    case ACTIONS.SET_LOADING:
-      return { ...state, loading: action.payload, error: null };
+    case ACTIONS.LOGIN_START:
+      return { ...state, loading: true, error: null };
     case ACTIONS.LOGIN_SUCCESS:
       return {
         ...state,
@@ -32,162 +33,105 @@ const authReducer = (state, action) => {
         user: action.payload.user,
         token: action.payload.token,
         loading: false,
-        error: null
+        error: null,
       };
-    case ACTIONS.LOGIN_ERROR:
-      return {
-        ...state,
-        isAuthenticated: false,
-        user: null,
-        token: null,
-        loading: false,
-        error: action.payload
-      };
+    case ACTIONS.LOGIN_FAILURE:
+      return { ...state, loading: false, error: action.payload };
     case ACTIONS.LOGOUT:
-      return initialState;
-    case ACTIONS.CLEAR_ERROR:
-      return { ...state, error: null };
+      return { ...initialState }; // Reset to initial state on logout
+    case ACTIONS.UPDATE_USER_SUCCESS:
+        return { ...state, user: action.payload };
     default:
       return state;
   }
 };
 
-// Context
+// Create the context
 const AuthContext = createContext();
 
-// Provider
+// Create the provider component
 export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
-  // Vérifier si l'utilisateur est déjà connecté au démarrage
+  // Effect to check for persisted session in localStorage on initial app load
   useEffect(() => {
-    const savedAuth = localStorage.getItem('odoriz-auth');
-    if (savedAuth) {
-      try {
-        const authData = JSON.parse(savedAuth);
-        // Vérifier si le token n'est pas expiré (simulation simple)
-        const tokenAge = Date.now() - authData.timestamp;
-        const maxAge = 24 * 60 * 60 * 1000; // 24 heures
-        
-        if (tokenAge < maxAge) {
-          dispatch({
-            type: ACTIONS.LOGIN_SUCCESS,
-            payload: {
-              user: authData.user,
-              token: authData.token
-            }
-          });
-        } else {
-          // Token expiré
-          localStorage.removeItem('odoriz-auth');
+    try {
+        const storedUser = localStorage.getItem('odorizUser');
+        const storedToken = localStorage.getItem('odorizToken');
+        if (storedUser && storedToken) {
+          dispatch({ type: ACTIONS.LOGIN_SUCCESS, payload: { user: JSON.parse(storedUser), token: storedToken } });
         }
-      } catch (error) {
-        console.error('Erreur lors du chargement des données d\'authentification:', error);
-        localStorage.removeItem('odoriz-auth');
-      }
+    } catch (error) {
+        console.error("Failed to parse user from localStorage", error);
+        localStorage.removeItem('odorizUser');
+        localStorage.removeItem('odorizToken');
     }
   }, []);
 
-  // Connexion
-  const login = async (email, password) => {
+  // Login function that calls the API and dispatches actions
+  const login = useCallback(async (email, password) => {
+    dispatch({ type: ACTIONS.LOGIN_START });
     try {
-      dispatch({ type: ACTIONS.SET_LOADING, payload: true });
-      
-      const authData = await loginUser(email, password);
-      
-      if (authData) {
-        // Sauvegarder dans localStorage
-        const authToSave = {
-          user: authData.user,
-          token: authData.token,
-          timestamp: Date.now()
-        };
-        localStorage.setItem('odoriz-auth', JSON.stringify(authToSave));
-        
-        dispatch({
-          type: ACTIONS.LOGIN_SUCCESS,
-          payload: authData
-        });
-
-        toast({
-          title: "Connexion réussie",
-          description: `Bienvenue ${authData.user.name} !`,
-          duration: 3000,
-        });
-
+      const response = await loginUser(email, password);
+      if (response && response.user) {
+        dispatch({ type: ACTIONS.LOGIN_SUCCESS, payload: response });
+        localStorage.setItem('odorizUser', JSON.stringify(response.user));
+        localStorage.setItem('odorizToken', response.token);
         return { success: true };
       } else {
-        dispatch({
-          type: ACTIONS.LOGIN_ERROR,
-          payload: 'Email ou mot de passe incorrect'
-        });
-        return { success: false, error: 'Email ou mot de passe incorrect' };
+        const errorMsg = 'Email ou mot de passe incorrect';
+        dispatch({ type: ACTIONS.LOGIN_FAILURE, payload: errorMsg });
+        return { success: false, error: errorMsg };
       }
-    } catch (error) {
-      dispatch({
-        type: ACTIONS.LOGIN_ERROR,
-        payload: error.message
-      });
-      return { success: false, error: error.message };
+    } catch (err) {
+      dispatch({ type: ACTIONS.LOGIN_FAILURE, payload: err.message });
+      return { success: false, error: err.message };
     }
-  };
+  }, []);
 
-  // Déconnexion
-  const logout = () => {
-    localStorage.removeItem('odoriz-auth');
+  // Logout function
+  const logout = useCallback(() => {
     dispatch({ type: ACTIONS.LOGOUT });
-    
-    toast({
-      title: "Déconnexion réussie",
-      description: "À bientôt !",
-      duration: 3000,
-    });
-  };
+    localStorage.removeItem('odorizUser');
+    localStorage.removeItem('odorizToken');
+  }, []);
 
-  // Effacer les erreurs
-  const clearError = () => {
-    dispatch({ type: ACTIONS.CLEAR_ERROR });
-  };
+  // Function to update user profile details
+  const updateUser = useCallback(async (details) => {
+      if (!state.user) return;
+      try {
+          const updatedUser = await apiUpdateUserDetails(state.user.id, details);
+          dispatch({ type: ACTIONS.UPDATE_USER_SUCCESS, payload: updatedUser });
+          localStorage.setItem('odorizUser', JSON.stringify(updatedUser));
+          return updatedUser;
+      } catch (error) {
+          console.error("Failed to update user details:", error);
+          throw error;
+      }
+  }, [state.user]);
 
-  // Vérifier si l'utilisateur est admin
-  const isAdmin = () => {
-    return state.user && state.user.role === 'admin';
-  };
+  // Helper function to check if the user is an admin
+  const isAdmin = useCallback(() => {
+    return state.isAuthenticated && state.user?.role === 'admin';
+  }, [state.isAuthenticated, state.user]);
 
-  // Vérifier si l'utilisateur est client
-  const isCustomer = () => {
-    return state.user && state.user.role === 'customer';
-  };
-
-  // Fonction pour vérifier l'autorisation d'accès à une route
-  const hasAccess = (requiredRole) => {
-    if (!state.isAuthenticated) return false;
-    if (!requiredRole) return true; // Pas de rôle requis
-    return state.user && state.user.role === requiredRole;
-  };
-
+  // The value provided to consuming components
   const value = {
     ...state,
     login,
     logout,
-    clearError,
+    updateUser,
     isAdmin,
-    isCustomer,
-    hasAccess
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-// Hook personnalisé
+// Custom hook to easily consume the context
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth doit être utilisé dans un AuthProvider');
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 };

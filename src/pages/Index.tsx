@@ -105,7 +105,7 @@ const Index = () => {
                 <Button 
                   variant="outline" 
                   size="lg" 
-                  className="border-primary-foreground text-primary-foreground hover:bg-primary-foreground hover:text-primary px-8 py-3 text-lg"
+                  className="border-primary-foreground text-primar hover:gold-gradient hover:text-primary-foreground px-8 py-3 text-lg hover-glow group"
                 >
                   <Sparkles className="mr-2 h-5 w-5" />
                   Nouveautés
