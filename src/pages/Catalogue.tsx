@@ -35,9 +35,9 @@ const Catalogue = () => {
 
   const brands = [
     { value: 'all', label: 'Toutes les marques' },
-    ...Array.from(new Set(products.map(p => p.brand))).map(brand => ({
-      value: brand,
-      label: brand
+    ...Array.from(new Set(products.map(p => p.brand).filter(Boolean))).map(brand => ({
+      value: brand as string,
+      label: brand as string
     }))
   ];
 
