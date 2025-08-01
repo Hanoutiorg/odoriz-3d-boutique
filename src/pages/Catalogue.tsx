@@ -1,348 +1,293 @@
+
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Filter, Grid, List, Search, SlidersHorizontal } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { useProducts } from '../contexts/ProductContext';
 import { useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { Search, Filter, Grid, List } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Slider } from '@/components/ui/slider';
+import { useProducts } from '../contexts/ProductContext';
 import ProductCard from '../components/product/ProductCard';
 
 const Catalogue = () => {
+  const location = useLocation();
   const { 
     products, 
-    searchResults, 
     loading, 
+    error, 
     filters, 
     updateFilters, 
     resetFilters, 
-    getFilteredProducts 
+    getFilteredProducts,
+    searchProductsByQuery 
   } = useProducts();
   
-  const [viewMode, setViewMode] = useState('grid');
-  const [showFilters, setShowFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const location = useLocation();
+  const [viewMode, setViewMode] = useState('grid');
 
-  // Récupérer les paramètres URL
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const category = params.get('category');
-    const filter = params.get('filter');
-    
-    if (category) {
-      updateFilters({ category });
-    }
-    
-    if (filter === 'new') {
-      updateFilters({ sortBy: 'newest' });
-    } else if (filter === 'bestsellers') {
-      updateFilters({ sortBy: 'rating' }); // Changed from 'bestseller' to 'rating' which exists in sortOptions
-    }
-  }, [location.search, updateFilters]);
+  const categories = [
+    { value: 'all', label: 'Toutes les catégories' },
+    { value: 'Pour Homme', label: 'Pour Homme' },
+    { value: 'Pour Femme', label: 'Pour Femme' },
+    { value: 'Niche', label: 'Niche' }
+  ];
 
-  const displayedProducts = searchResults.length > 0 ? searchResults : getFilteredProducts();
+  const brands = [
+    { value: 'all', label: 'Toutes les marques' },
+    ...Array.from(new Set(products.map(p => p.brand))).map(brand => ({
+      value: brand,
+      label: brand
+    }))
+  ];
 
-  const categories = ['Pour Homme', 'Pour Femme', 'Niche'];
-  const brands = [...new Set(products.map(p => p.brand))];
   const sortOptions = [
     { value: 'name', label: 'Nom (A-Z)' },
     { value: 'price-asc', label: 'Prix croissant' },
     { value: 'price-desc', label: 'Prix décroissant' },
-    { value: 'rating', label: 'Mieux notés' },
+    { value: 'rating', label: 'Meilleures notes' },
     { value: 'newest', label: 'Nouveautés' }
   ];
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const filter = params.get('filter');
+    
+    if (filter === 'new') {
+      updateFilters({ sortBy: 'newest' });
+    } else if (filter === 'bestsellers') {
+      updateFilters({ sortBy: 'rating' });
+    }
+  }, [location.search, updateFilters]);
 
   const handleSearch = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      // Logic for search will be handled by the context
+      searchProductsByQuery(searchQuery);
     }
   };
 
   const handleFilterChange = (filterType, value) => {
-    updateFilters({ [filterType]: value });
+    if (filterType === 'category') {
+      updateFilters({ category: value === 'all' ? '' : value });
+    } else if (filterType === 'brand') {
+      updateFilters({ brand: value === 'all' ? '' : value });
+    } else if (filterType === 'sortBy') {
+      updateFilters({ sortBy: value });
+    }
   };
 
-  const clearFilters = () => {
-    resetFilters();
-    setSearchQuery('');
+  const handlePriceChange = (value) => {
+    updateFilters({ 
+      minPrice: value[0], 
+      maxPrice: value[1] 
+    });
   };
+
+  const filteredProducts = getFilteredProducts();
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex justify-center items-center min-h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center text-red-600">
+          <p>Erreur lors du chargement des produits: {error}</p>
+          <Button onClick={() => window.location.reload()} className="mt-4">
+            Réessayer
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="bg-muted/30 py-16">
-        <div className="container mx-auto px-4">
-          <motion.div
-            className="text-center"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-          >
-            <h1 className="text-4xl md:text-5xl font-playfair font-bold text-foreground mb-4">
-              Notre Collection
-            </h1>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Explorez notre sélection exclusive de parfums de luxe, soigneusement choisis 
-              pour vous offrir les plus belles fragrances du monde.
-            </p>
-          </motion.div>
-        </div>
-      </div>
+    <div className="container mx-auto px-4 py-8">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <h1 className="text-4xl font-playfair font-bold text-center mb-8">
+          Notre Catalogue
+        </h1>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Sidebar Filtres */}
-          <div className={`lg:w-80 ${showFilters ? 'block' : 'hidden lg:block'}`}>
-            <Card className="sticky top-24">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-playfair font-semibold">Filtres</h2>
-                  <Button variant="ghost" size="sm" onClick={clearFilters}>
-                    Effacer
-                  </Button>
-                </div>
+        {/* Barre de recherche */}
+        <form onSubmit={handleSearch} className="mb-8">
+          <div className="flex gap-4 max-w-2xl mx-auto">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                type="text"
+                placeholder="Rechercher un parfum, une marque..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Button type="submit">Rechercher</Button>
+          </div>
+        </form>
 
-                <div className="space-y-6">
-                  {/* Recherche */}
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Recherche</label>
-                    <form onSubmit={handleSearch} className="relative">
-                      <Input
-                        placeholder="Nom, marque..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10"
-                      />
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    </form>
-                  </div>
-
-                  <Separator />
-
-                  {/* Catégorie */}
-                  <div>
-                    <label className="text-sm font-medium mb-3 block">Catégorie</label>
-                    <div className="space-y-2">
-                      <label className="flex items-center space-x-2">
-                        <input
-                          type="radio"
-                          name="category"
-                          value=""
-                          checked={filters.category === ''}
-                          onChange={(e) => handleFilterChange('category', e.target.value)}
-                          className="w-4 h-4 text-accent"
-                        />
-                        <span className="text-sm">Toutes les catégories</span>
-                      </label>
-                      {categories.map((category) => (
-                        <label key={category} className="flex items-center space-x-2">
-                          <input
-                            type="radio"
-                            name="category"
-                            value={category}
-                            checked={filters.category === category}
-                            onChange={(e) => handleFilterChange('category', e.target.value)}
-                            className="w-4 h-4 text-accent"
-                          />
-                          <span className="text-sm">{category}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  {/* Marque */}
-                  <div>
-                    <label className="text-sm font-medium mb-3 block">Marque</label>
-                    <Select value={filters.brand || "all"} onValueChange={(value) => handleFilterChange('brand', value === "all" ? "" : value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Toutes les marques" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Toutes les marques</SelectItem>
-                        {brands.map((brand) => (
-                          <SelectItem key={String(brand)} value={String(brand)}>
-                            {String(brand)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <Separator />
-
-                  {/* Prix */}
-                  <div>
-                    <label className="text-sm font-medium mb-3 block">Prix</label>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="text-xs text-muted-foreground">Prix minimum</label>
-                        <Input
-                          type="number"
-                          value={filters.minPrice}
-                          onChange={(e) => handleFilterChange('minPrice', parseInt(e.target.value) || 0)}
-                          placeholder="0"
-                          className="mt-1"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs text-muted-foreground">Prix maximum</label>
-                        <Input
-                          type="number"
-                          value={filters.maxPrice}
-                          onChange={(e) => handleFilterChange('maxPrice', parseInt(e.target.value) || 1000)}
-                          placeholder="1000"
-                          className="mt-1"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+        {/* Filtres */}
+        <div className="bg-card p-6 rounded-lg mb-8">
+          <div className="flex items-center gap-4 mb-6">
+            <Filter className="h-5 w-5" />
+            <h2 className="text-lg font-semibold">Filtres</h2>
+            <Button variant="outline" size="sm" onClick={resetFilters}>
+              Réinitialiser
+            </Button>
           </div>
 
-          {/* Contenu principal */}
-          <div className="flex-1">
-            {/* Barre d'outils */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
-              <div className="flex items-center gap-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowFilters(!showFilters)}
-                  className="lg:hidden"
-                >
-                  <SlidersHorizontal className="h-4 w-4 mr-2" />
-                  Filtres
-                </Button>
-                
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <span>{displayedProducts.length} produit{displayedProducts.length > 1 ? 's' : ''}</span>
-                  {(filters.category || filters.brand || searchResults.length > 0) && (
-                    <>
-                      <span>•</span>
-                      <Button variant="link" size="sm" onClick={clearFilters} className="h-auto p-0">
-                        Effacer les filtres
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4">
-                <Select value={filters.sortBy || "name"} onValueChange={(value) => handleFilterChange('sortBy', value)}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sortOptions.map((option) => {
-                      console.log('SortOption:', option); // Debug log
-                      return (
-                        <SelectItem key={String(option.value)} value={String(option.value)}>
-                          {String(option.label)}
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-
-                <div className="flex border rounded-md">
-                  <Button
-                    variant={viewMode === 'grid' ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={() => setViewMode('grid')}
-                    className="rounded-r-none"
-                  >
-                    <Grid className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant={viewMode === 'list' ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={() => setViewMode('list')}
-                    className="rounded-l-none"
-                  >
-                    <List className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            {/* Filtres actifs */}
-            <div className="flex flex-wrap gap-2 mb-6">
-              {filters.category && (
-                <Badge variant="secondary" className="text-xs">
-                  {filters.category}
-                  <button
-                    onClick={() => handleFilterChange('category', '')}
-                    className="ml-1 hover:text-destructive"
-                  >
-                    ×
-                  </button>
-                </Badge>
-              )}
-              {filters.brand && (
-                <Badge variant="secondary" className="text-xs">
-                  {filters.brand}
-                  <button
-                    onClick={() => handleFilterChange('brand', '')}
-                    className="ml-1 hover:text-destructive"
-                  >
-                    ×
-                  </button>
-                </Badge>
-              )}
-            </div>
-
-            {/* Grille de produits */}
-            {loading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {[...Array(6)].map((_, i) => (
-                  <div key={i} className="animate-pulse">
-                    <div className="aspect-[3/4] bg-muted rounded-lg mb-4" />
-                    <div className="space-y-2">
-                      <div className="h-4 bg-muted rounded w-3/4" />
-                      <div className="h-4 bg-muted rounded w-1/2" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : displayedProducts.length === 0 ? (
-              <div className="text-center py-16">
-                <Filter className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-xl font-semibold mb-2">Aucun produit trouvé</h3>
-                <p className="text-muted-foreground mb-4">
-                  Essayez de modifier vos critères de recherche ou de filtrage.
-                </p>
-                <Button onClick={clearFilters}>
-                  Effacer les filtres
-                </Button>
-              </div>
-            ) : (
-              <motion.div
-                className={`grid gap-6 ${
-                  viewMode === 'grid' 
-                    ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' 
-                    : 'grid-cols-1'
-                }`}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.4 }}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Catégorie */}
+            <div>
+              <label className="block text-sm font-medium mb-2">Catégorie</label>
+              <Select 
+                value={filters.category || 'all'} 
+                onValueChange={(value) => handleFilterChange('category', value)}
               >
-                {displayedProducts.map((product, index) => (
-                  <ProductCard key={product.id} product={product} index={index} />
-                ))}
-              </motion.div>
-            )}
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((category) => (
+                    <SelectItem key={category.value} value={category.value}>
+                      {category.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Marque */}
+            <div>
+              <label className="block text-sm font-medium mb-2">Marque</label>
+              <Select 
+                value={filters.brand || 'all'} 
+                onValueChange={(value) => handleFilterChange('brand', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {brands.map((brand) => (
+                    <SelectItem key={brand.value} value={brand.value}>
+                      {brand.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Prix */}
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Prix: {filters.minPrice}€ - {filters.maxPrice}€
+              </label>
+              <div className="px-3 py-2">
+                <Slider
+                  min={0}
+                  max={500}
+                  step={10}
+                  value={[filters.minPrice, filters.maxPrice]}
+                  onValueChange={handlePriceChange}
+                  className="w-full"
+                />
+              </div>
+            </div>
+
+            {/* Tri */}
+            <div>
+              <label className="block text-sm font-medium mb-2">Trier par</label>
+              <Select 
+                value={filters.sortBy || 'name'} 
+                onValueChange={(value) => handleFilterChange('sortBy', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {sortOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
-      </div>
+
+        {/* Barre d'outils */}
+        <div className="flex justify-between items-center mb-6">
+          <p className="text-sm text-muted-foreground">
+            {filteredProducts.length} produit(s) trouvé(s)
+          </p>
+          
+          <div className="flex items-center gap-2">
+            <Button
+              variant={viewMode === 'grid' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setViewMode('grid')}
+            >
+              <Grid className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === 'list' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setViewMode('list')}
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Grille de produits */}
+        <motion.div
+          className={
+            viewMode === 'grid' 
+              ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+              : "space-y-6"
+          }
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
+        >
+          {filteredProducts.map((product, index) => (
+            <motion.div
+              key={product.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: index * 0.1 }}
+            >
+              <ProductCard 
+                product={product} 
+                viewMode={viewMode} 
+              />
+            </motion.div>
+          ))}
+        </motion.div>
+
+        {filteredProducts.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-lg text-muted-foreground mb-4">
+              Aucun produit ne correspond à vos critères de recherche.
+            </p>
+            <Button onClick={resetFilters}>
+              Réinitialiser les filtres
+            </Button>
+          </div>
+        )}
+      </motion.div>
     </div>
   );
 };
